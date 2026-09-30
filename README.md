@@ -1,6 +1,6 @@
 # Orbit — AI company office
 
-A private company dashboard with 15 animated robot teammates, a local agent worker, Supabase task queues, and exact-message CEO approvals. Uses subscription-authenticated Codex and installed Ollama models without a paid LLM API key.
+A private company dashboard with 18 animated robot teammates and a central CEO desk, a local agent worker, Supabase task queues, and exact-message CEO approvals. Uses subscription-authenticated Codex and installed Ollama models without a paid LLM API key.
 
 This repository is being implemented in stages. See `docs/IMPLEMENTATION-STATUS.md` for verified functionality and remaining execution gates.
 
@@ -28,8 +28,8 @@ Leave the worker running and the laptop awake. Closing the office browser does n
 
 ## What works
 
-- Fifteen animated robots with desks, monitors, department areas, selectable teammates, zoom, a complete team list, and reduced motion.
-- Principal → frontend → backend → QA → principal development reviews; eight SEO specialist handoffs; COO-led lead and automation workflows.
+- Eighteen articulated robots with desks, individual keyboard keys, department areas and a central CEO workstation. Dark mode persists locally; immersive Office fills the screen; click robots for work cards; scroll/pinch or use the overview controls to zoom up to 500%.
+- Principal → frontend → backend → QA → principal development reviews; eight SEO specialist handoffs; COO-led lead and automation workflows, plus video/motion, graphic-design and social campaign handoffs.
 - Real Supabase tasks, durable per-office queues, transactional events, live updates, pause, cancellation, worker pairing/revocation, heartbeat leases, and stale-attempt rejection.
 - CEO-only commands, RLS, immutable email snapshots, approval expiry, explicit dispatch, replay-resistant Make claims, and authenticated provider results.
 - Bounded public website evidence, Ollama structured handoffs, and opt-in subscription Codex repository reviews.
@@ -39,7 +39,7 @@ Leave the worker running and the laptop awake. Closing the office browser does n
 
 Coding roles produce **read-only repository reviews and proposed changes**. Automatic worktree edits, independent executed QA, PR creation by the worker, and production releases are not enabled. SEO has no Search Console, analytics, rank, or search-volume connection yet. Lead generation qualifies **supplied sites**; it does not discover a new lead database or send unapproved outreach. Automation produces scenario designs until an executor is configured and tested.
 
-Make and Cloudinary remain disconnected until their server settings are provided. No email has been sent and no existing Make scenario has been altered. The one-machine worker runs a single handoff at a time. The local 9B model worked in a smoke test; broader task-quality evaluations are still required.
+Make and Cloudinary remain disconnected until their server settings are provided. No email has been sent and no existing Make scenario has been altered. The one-machine worker runs a single handoff at a time. Both the local 9B model and subscription Codex produced valid handoffs in smoke tests; broader task-quality evaluations are still required. Creative roles produce text briefs and proposals; media decoding, rendering and platform publishing adapters are not yet connected.
 
 ## Verification
 
@@ -52,8 +52,11 @@ npx tsx tests/api-smoke.ts
 npx tsx tests/website-smoke.ts
 # Optional actual local inference; takes time and uses no paid LLM API:
 npx tsx tests/model-smoke.ts
+npx tsx tests/model-smoke.ts --video
+# Subscription check; does not use an API key:
+npx tsx tests/codex-smoke.ts
 ```
 
-`tests/database.sql` checks approvals, queue recovery, worker fencing, executor replays, callbacks, and tenant isolation inside a transaction that rolls back all fixtures. Run it against the named development Supabase project, not an unrelated database. CI runs deterministic tests, type checking, lint and the production build.
+`tests/creative-database.sql` checks the three added workflow routes. `tests/database.sql` checks approvals, queue recovery, worker fencing, executor replays, callbacks, and tenant isolation inside a transaction that rolls back all fixtures. Run it against the named development Supabase project, not an unrelated database. CI runs deterministic tests, type checking, lint and the production build.
 
 See [setup](docs/SETUP.md), [implementation status](docs/IMPLEMENTATION-STATUS.md), and the [audited plan](docs/PROJECT-PLAN.md).

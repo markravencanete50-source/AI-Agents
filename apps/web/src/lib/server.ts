@@ -1,6 +1,7 @@
 import 'server-only';
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
+import { requestOrigin } from './request-origin';
 export async function authenticatedClient(){
  const jar=await cookies();
  const url=process.env.NEXT_PUBLIC_SUPABASE_URL,key=process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
@@ -12,8 +13,6 @@ export async function authenticatedClient(){
 }
 export function sameOrigin(req:Request){
  // Next.js can use its internal localhost origin in req.url behind a proxy.
- const url=new URL(req.url),host=req.headers.get('host')??url.host;
- const protocol=req.headers.get('x-forwarded-proto')?.split(',')[0]??url.protocol.slice(0,-1);
- if(!['http','https'].includes(protocol)||req.headers.get('origin')!==`${protocol}://${host}`)throw new Error('Origin not allowed');
+ if(req.headers.get('origin')!==requestOrigin(req))throw new Error('Origin not allowed');
 }
 export function apiError(error:unknown){const message=error instanceof Error?error.message:'Request failed';return Response.json({error:message},{status:message.includes('Sign in')?401:400});}

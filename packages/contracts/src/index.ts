@@ -15,7 +15,10 @@ export const agents = [
   {id:'aeo-geo',name:'Echo',role:'AEO / GEO Specialist',short:'AEO / GEO',department:'search',color:'#8f79a6',provider:'ollama',mission:'Improve answer clarity and source-supported passages. Do not promise AI citations or fabricate engine visibility metrics.'},
   {id:'schema',name:'Struct',role:'Structured Data Specialist',short:'Schema',department:'search',color:'#b39cc9',provider:'ollama',mission:'Propose applicable JSON-LD consistent with visible content. Do not invent reviews, ratings or entities.'},
   {id:'analytics',name:'Lens',role:'Analytics & Reporting',short:'Analytics',department:'search',color:'#9f8caf',provider:'ollama',mission:'Report dated measurements and explicit gaps. Do not turn general search totals into an AI-only traffic metric.'},
-  {id:'seo-qa',name:'Proof',role:'SEO QA Specialist',short:'SEO QA',department:'search',color:'#c0accd',provider:'ollama',mission:'Review evidence and recommendations independently. Surface unsupported claims and implementation risks.'}
+  {id:'seo-qa',name:'Proof',role:'SEO QA Specialist',short:'SEO QA',department:'search',color:'#c0accd',provider:'ollama',mission:'Review evidence and recommendations independently. Surface unsupported claims and implementation risks.'},
+  {id:'video',name:'Frame',role:'Video Editor & Motion Designer',short:'Video & Motion',department:'creative',color:'#d77984',provider:'ollama',mission:'Build evidence-based edit decisions, storyboards, motion graphics, kinetic typography, compositing, captions, color and audio plans. Prepare FFmpeg or Remotion proposals from supplied footage. Never claim an unrendered video exists.'},
+  {id:'designer',name:'Hue',role:'Graphic Designer',short:'Graphic Design',department:'creative',color:'#df986d',provider:'ollama',mission:'Create coherent brand directions, layouts, typography, color systems, thumbnails and platform asset briefs. Check readability, accessibility, image rights and export specifications. Distinguish proposals from rendered assets.'},
+  {id:'social',name:'Pulse',role:'Social Media Manager',short:'Social Media',department:'creative',color:'#cf879d',provider:'ollama',mission:'Plan platform-specific calendars, captions, campaign briefs and community response drafts. Coordinate graphics and video, use only supplied dated analytics, and never publish, schedule or reply without CEO approval.'}
 ] as const;
 export type Agent = typeof agents[number];
 export type AgentId = Agent['id'];
@@ -23,13 +26,16 @@ export const templates = {
   leads: {name:'Lead generation',description:'Research supplied prospects and prepare outreach for your review.',roles:['coo','leads','coo']},
   development: {name:'Website development',description:'Principal-led frontend, backend and independent QA handoffs.',roles:['principal','frontend','backend','qa','principal']},
   seo: {name:'SEO · AEO · GEO audit',description:'Eight specialists review source evidence and prepare a roadmap.',roles:['seo-principal','technical-seo','keywords','content','aeo-geo','schema','analytics','seo-qa']},
-  automation: {name:'Make automation',description:'A versioned scenario proposal, test plan and COO review.',roles:['coo','automation','coo']}
+  automation: {name:'Make automation',description:'A versioned scenario proposal, test plan and COO review.',roles:['coo','automation','coo']},
+  video: {name:'Video & motion graphics',description:'Editing brief, graphic direction, motion plan and COO review. Rendering is not yet connected.',roles:['coo','video','designer','video','coo']},
+  design: {name:'Graphic design',description:'Brand-aware visual direction and asset specifications for your review.',roles:['coo','designer','coo']},
+  social: {name:'Social media campaign',description:'A platform-specific calendar with graphic and video briefs. Publishing stays disabled.',roles:['coo','social','designer','video','social','coo']}
 } as const;
 const websiteUrl=z.string().url().refine(value=>['https:','http:'].includes(new URL(value).protocol),'Use an HTTP or HTTPS URL');
-export const objectiveSchema = z.object({title:z.string().trim().min(8).max(1200),template:z.enum(['leads','development','seo','automation']),project_id:z.string().uuid().nullable().optional(),input:z.object({domains:z.array(websiteUrl).max(10).default([]),recipient:z.string().email().optional(),repository_key:z.string().regex(/^[a-z0-9_-]{1,60}$/i).optional()}).default({domains:[]})});
+export const objectiveSchema = z.object({title:z.string().trim().min(8).max(1200),template:z.enum(['leads','development','seo','automation','video','design','social']),project_id:z.string().uuid().nullable().optional(),input:z.object({domains:z.array(websiteUrl).max(10).default([]),recipient:z.string().email().optional(),repository_key:z.string().regex(/^[a-z0-9_-]{1,60}$/i).optional()}).default({domains:[]})});
 export const projectSchema = z.object({name:z.string().trim().min(2).max(100),url:websiteUrl.optional().or(z.literal('')),repository:z.string().url().refine(value=>new URL(value).origin==='https://github.com','Use a GitHub repository URL').optional().or(z.literal(''))});
 export const emailSchema = z.object({kind:z.literal('email'),account:z.literal('gmail'),to:z.string().email(),subject:z.string().min(1).max(200),body:z.string().min(1).max(12000)}).strict();
-export const resultSchema = z.object({summary:z.string().min(1).max(2000),deliverable:z.string().min(1).max(50000),sources:z.array(z.object({url:z.string().url(),title:z.string().max(200)})).max(25).default([]),limitations:z.array(z.string().max(500)).max(20).default([]),email:emailSchema.optional()});
+export const resultSchema = z.object({summary:z.string().min(1).max(2000),deliverable:z.string().min(1).max(50000),sources:z.array(z.object({url:websiteUrl,title:z.string().max(200)})).max(25).default([]),limitations:z.array(z.string().max(500)).max(20).default([]),email:emailSchema.optional()});
 export type AgentResult = z.infer<typeof resultSchema>;
 export type Template = keyof typeof templates;
 export type Task = {id:string;workspace_id:string;objective_id:string;project_id:string|null;title:string;template:Template;agent_id:AgentId;step:number;status:'blocked'|'queued'|'working'|'completed'|'failed'|'cancelled';input:Record<string,unknown>;output:AgentResult|null;error:string|null;created_at:string;updated_at:string};

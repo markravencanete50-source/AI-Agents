@@ -26,7 +26,7 @@ Copy the worker example to `.env`, enter public Supabase settings, and paste the
 
 Run `npm run worker:check`, then `npm run worker`. One handoff runs at a time, with a 15-minute limit. A heartbeat renews a 120-second lease every 30 seconds. An interrupted attempt becomes claimable after expiry; only the newest attempt can complete. Three interrupted attempts stop the task for review. Global pause blocks new claims and heartbeats. Worker revocation blocks all further requests.
 
-For coding reviews, set `OFFICE_CODEX_ENABLED=true` only after subscription authentication is verified. Set `OFFICE_REPOSITORIES` to a JSON map such as `{"company-website":"C:/work/company-website"}`. Use that key in a development objective. The worker reads a bounded set of tracked source files, excludes likely credential files, and submits the evidence to a read-only Codex turn. Shell tools and external searches are disabled. This mode proposes changes; it does not modify or deploy the project. It is not an approved isolation boundary for arbitrary executable project tools.
+For coding reviews, set `OFFICE_CODEX_ENABLED=true` only after subscription authentication is verified. Set `OFFICE_REPOSITORIES` to a JSON map such as `{"company-website":"C:/work/company-website"}`. Use that key in a development objective. The worker reads a bounded set of tracked source files, excludes likely credential files, and submits the evidence to a read-only Codex turn. Shell tools, connected apps, browser/computer actions, plugins, hooks, multi-agent tools, configured MCP servers and external searches are disabled. This mode proposes changes; it does not modify or deploy the project. It is not an approved isolation boundary for arbitrary executable project tools.
 
 ## Make + Gmail
 
@@ -41,6 +41,8 @@ Create a **new disabled scenario** dedicated to Orbit. Do not modify an existing
 Pair an executor from Office Settings. Store its one-time token as `MAKE_EXECUTOR_TOKEN` in Vercel. Generate separate strong random values for `MAKE_SIGNING_SECRET` and `MAKE_CALLBACK_SECRET`; the signing key belongs only on the office server, while the callback credential is also stored securely in the dedicated Make scenario. Set `MAKE_WEBHOOK_URL` to the new scenario's HTTPS `hook.euN.make.com` or `hook.usN.make.com` endpoint.
 
 The webhook signature expires after five minutes. Database claiming checks the current approval, exact snapshot hash, workspace and pause state, then changes dispatching → executing atomically. A repeated verification is denied. The callback cannot create a new action or approve anything. Approval expires after 24 hours. Verify the whole flow with your own test recipient before activating it. Do not enable Make automatic retries on the Gmail send module. A timeout or missing result needs a Gmail/Make inspection and reconciliation; do not resend blindly. The app cannot undo an email once Gmail accepts it.
+
+A Vercel-protected preview cannot receive calls from Make without an explicitly authorized access arrangement. Use an approved stable deployment origin and keep the scenario disabled until its verification and callback endpoints are reachable. Do not disable deployment protection or embed a bypass credential in a public blueprint.
 
 These are integration contracts and server endpoints. A live Make scenario, Gmail OAuth connection, secure scenario settings and a test send are still required. There is no scenario-version enforcement or campaign suppression database yet; keep prospect campaigns disabled.
 
