@@ -2,7 +2,7 @@
 
 The office has 18 AI roles and a separate human CEO workstation. The CEO avatar's live status requires an authenticated CEO session; the anonymous sample labels it as a preview.
 
-Click **Office** in the navigation to enter a room-only view. Escape returns to the overview. Browser Back also exits when entered through the navigation. Click a robot for its current task, status, deliverable and explicit limitations. The CEO work card opens the approval queue.
+Click **Office** in the navigation to enter a room-only view. Escape returns to the overview. Browser Back also exits when entered through the navigation. Compact, single-line role badges stay visible above every robot in this view, including the CEO, while zooming and on narrow screens. Hover a badge for the full role title. Click a robot or its role label for its current task, status, deliverable and explicit limitations. The CEO work card opens the approval queue.
 
 Drag to orbit. Scroll or pinch to zoom, and right-drag/two-finger drag to pan. The overview also has zoom buttons, with a range from roughly 55% to 500%. In immersive mode, `+`/`=` and `-` change zoom; `0` resets it. A maximum zoom crops the room intentionally so individual keyboards and robots can be inspected. Dark mode is available in the header and Settings, and is remembered on that browser. Reduced motion disables walking, typing, blinking and breathing movements.
 

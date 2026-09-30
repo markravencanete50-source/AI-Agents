@@ -5,7 +5,7 @@ The audited v2 plan is the full target. This implementation delivers a working o
 | Area | Implemented and checked | Remaining |
 |---|---|---|
 | Office | 18 articulated robots, larger room, detailed keyboards, central CEO desk, smooth bounded walking/typing/blinking, dark mode, 500% zoom, immersive room-only view, robot work-card dialogs, list fallback, reduced motion | Sustained frame-time/memory benchmark alongside inference |
-| Supabase | Named project connected; migrations applied; CEO allowlist, RLS, typed RPC operations, per-office pgmq queues, transactional events and snapshots | CEO email confirmation, real first login; separate production project and backups |
+| Supabase | Named project connected; migrations applied; CEO allowlist, RLS, typed RPC operations, per-office pgmq queues, transactional events and snapshots | Real first CEO login; separate production project and backups |
 | Worker | Serial Ollama handoffs, bounded public-page retrieval, typed outputs, pairing/revocation, heartbeat, 120s leases, attempt fencing, pause/cancel, interrupted-attempt limit | Paired CEO laptop and full real workflow; quota-specific retry state |
 | Models | Installed-model inventory; actual qwen3.5:9b COO handoff in 82s; actual subscription Codex repository review in 91s; invalid/out-of-scope outputs rejected | Twenty-case quality evaluation; repeat representative task evaluation |
 | Development | Principal, frontend, backend, QA and principal review steps; registered local repository keys; bounded tracked-file evidence; Codex read-only adapter | Isolated worktree edits, independently executed QA, repair budgets, worker-created PRs, gated releases |
