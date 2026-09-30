@@ -5,7 +5,7 @@ The audited v2 plan is the full target. This implementation delivers a working o
 | Area | Implemented and checked | Remaining |
 |---|---|---|
 | Office | 18 articulated robots, larger room, detailed keyboards, central CEO desk, smooth bounded walking/typing/blinking, dark mode, 500% zoom, immersive room-only view, robot work-card dialogs, list fallback, reduced motion | Sustained frame-time/memory benchmark alongside inference |
-| Supabase | Named project connected; migrations applied; CEO allowlist, RLS, typed RPC operations, per-office pgmq queues, transactional events and snapshots | Real first CEO login; separate production project and backups |
+| Supabase | Named project connected; migrations applied; CEO allowlist, RLS, typed RPC operations, per-office pgmq queues, transactional events and snapshots | Auth callback URLs configured; real first CEO login awaits email sender rate-limit reset or custom SMTP; separate production project and backups |
 | Worker | Serial Ollama handoffs, bounded public-page retrieval, typed outputs, pairing/revocation, heartbeat, 120s leases, attempt fencing, pause/cancel, interrupted-attempt limit | Paired CEO laptop and full real workflow; quota-specific retry state |
 | Models | Installed-model inventory; actual qwen3.5:9b COO handoff in 82s; actual subscription Codex repository review in 91s; invalid/out-of-scope outputs rejected | Twenty-case quality evaluation; repeat representative task evaluation |
 | Development | Principal, frontend, backend, QA and principal review steps; registered local repository keys; bounded tracked-file evidence; Codex read-only adapter | Isolated worktree edits, independently executed QA, repair budgets, worker-created PRs, gated releases |
@@ -17,7 +17,7 @@ The audited v2 plan is the full target. This implementation delivers a working o
 | Creative | Video/motion editor, graphic designer and social manager; dedicated expertise playbooks; three workflow routes applied and database-tested | Footage decoding, transcription, actual media rendering, visual design exports, social publishing/scheduling and dated analytics |
 | Operations | Explicit task states, output/error inspection and manual recovery | Scheduled maintenance, uptime monitoring, restart-on-boot, backups, alerting, approvals for activation |
 
-Verification includes ten deterministic worker/contract tests; database rollback fixtures covering stale/missing attempts, duplicate completion, approval hashes, dispatch and executor replay, callback finality, pause and identity isolation; API checks rejecting anonymous commands, cross-origin writes and unsigned Make requests; public-site retrieval; lint, TypeScript and production build.
+Verification includes twelve deterministic auth/worker/contract tests; database rollback fixtures covering stale/missing attempts, duplicate completion, approval hashes, dispatch and executor replay, callback finality, pause and identity isolation; API checks rejecting anonymous commands, cross-origin writes and unsigned Make requests; public-site retrieval; lint, TypeScript and production build.
 
 The smaller qwen3:0.6b initial trial produced an unusable deliverable. A first 9B trial included an out-of-role email and was rejected. Role-specific generation schemas now omit email entirely when it is unauthorized; the subsequent 9B trial produced an internal checklist with clear limitations. These tests do not establish broad agent reliability.
 

@@ -7,6 +7,7 @@ test('recovery handles provider errors in either query or fragment without refle
   assert.match(signInRecovery(new URL('https://office.example/'+suffix))!,/expired or was already used/);
  }
  assert.match(signInRecovery(new URL('https://office.example/?signin=browser'))!,/another browser/);
+ assert.match(signInRecovery(new URL('https://office.example/?signin=rate_limit'))!,/email limit/);
  assert.equal(signInRecovery(new URL('https://office.example/#office')),null);
  assert.equal(signInRecovery(new URL('https://office.example/?code=example')),null);
  assert.doesNotMatch(signInRecovery(new URL('https://office.example/?error=unknown&error_description=UNTRUSTED'))!,/UNTRUSTED/);
@@ -14,6 +15,7 @@ test('recovery handles provider errors in either query or fragment without refle
 
 test('callback distinguishes expired links, missing PKCE state, and other failures',()=>{
  assert.equal(signInFailure({code:'otp_expired'}),'expired');
+ assert.equal(signInFailure({code:'over_email_send_rate_limit'}),'rate_limit');
  assert.equal(signInFailure({code:'bad_code_verifier'}),'browser');
  assert.equal(signInFailure({code:'flow_state_not_found'}),'browser');
  assert.equal(signInFailure({message:'PKCE code verifier not found in storage'}),'browser');
