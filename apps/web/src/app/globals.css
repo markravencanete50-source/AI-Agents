@@ -40,3 +40,8 @@ html[data-theme=dark] pre{color:#c7d8cd}html[data-theme=dark] a{color:#a5d7b9}ht
 html[data-theme=dark] :is(.tiny-spark,.mini-brand){color:#b0d1a5}html[data-theme=dark] .section-heading h2 span{background:#294239;color:#b3ceb4}
 
 @media(max-width:800px){.immersive-mode .scene-label{font-size:9px;padding:3px 5px;gap:3px}}
+
+.sign-in-error{background:#a94d3610;border:1px solid #ab705f;color:#85402d;border-radius:9px;padding:12px;font-size:12px;line-height:1.7;margin-bottom:16px}.sign-in-instructions{padding:14px;background:var(--sage-light);border-radius:9px;font-size:12px;line-height:1.7;margin:16px 0}html[data-theme=dark] .sign-in-error{color:#f0b3a5;background:#4d3633;border-color:#865f54}
+
+/* Keep 3D HTML badges inside the floor stack, below all dialogs. */
+.office-canvas{isolation:isolate}
