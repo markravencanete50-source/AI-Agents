@@ -1,0 +1,38 @@
+{
+  "name": "ai-agents-office",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "npm run dev -w @office/web",
+    "build": "npm run build -w @office/web",
+    "lint": "npm run lint -w @office/web",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "test": "tsx --test tests/*.test.ts",
+    "worker": "npm run start -w @office/worker",
+    "worker:check": "npm run check -w @office/worker"
+  },
+  "engines": {
+    "node": ">=22.14"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.63.0",
+    "@types/node": "26.6.3",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "@types/three": "0.186.0",
+    "eslint": "9.39.5",
+    "eslint-config-next": "16.3.7",
+    "supabase": "2.118.0",
+    "tsx": "4.23.15",
+    "typescript": "6.0.3"
+  },
+  "allowScripts": {
+    "esbuild@0.28.2": true,
+    "unrs-resolver@1.12.2": true
+  }
+}

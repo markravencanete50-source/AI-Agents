@@ -1,0 +1,58 @@
+-- Disposable integration fixtures: the whole script rolls back, including auth users and queues.
+begin;
+do $$
+declare u uuid:=gen_random_uuid(); other uuid:=gen_random_uuid(); w uuid; token text; token2 text; executor text; claim jsonb; second jsonb; o jsonb; aid uuid; hash text; caught boolean; queue text;
+begin
+ insert into auth.users(id,email) values(u,'orbit-fixture@example.invalid'),(other,'orbit-other@example.invalid');
+ update app_private.settings set value='orbit-fixture@example.invalid' where key='ceo_email';
+ perform set_config('request.jwt.claim.sub',u::text,true);
+ w:=(public.office_command('bootstrap','{}')->>'id')::uuid;
+ token:=public.office_command('pair','{"name":"fixture-one"}')->>'token';
+ token2:=public.office_command('pair','{"name":"fixture-two"}')->>'token';
+ executor:=public.office_pair_executor()->>'token';
+ perform public.office_command('objective','{"title":"Review supplied prospect","template":"leads","input":{"domains":[],"recipient":"test@example.invalid"}}');
+ claim:=public.office_worker(token,'claim');
+ assert claim->'task'->>'agent_id'='coo','First task should go to COO';
+ assert public.office_worker(token2,'claim')='null'::jsonb,'Concurrent worker must not claim same task';
+ caught:=false;
+ begin perform public.office_worker(token,'complete',jsonb_build_object('task_id',claim->'task'->>'id','output','{}'::jsonb)); exception when others then caught:=true; end;
+ assert caught,'Missing attempt must fail';
+ o:='{"summary":"Real integration fixture","deliverable":"Controlled internal handoff","sources":[],"limitations":[]}'::jsonb;
+ perform public.office_worker(token,'complete',jsonb_build_object('task_id',claim->'task'->>'id','attempt_id',claim->>'attempt_id','output',o));
+ caught:=false;begin perform public.office_worker(token,'complete',jsonb_build_object('task_id',claim->'task'->>'id','attempt_id',claim->>'attempt_id','output',o));exception when others then caught:=true;end;
+ assert caught,'Duplicate completion must fail';
+ claim:=public.office_worker(token,'claim');assert claim->'task'->>'agent_id'='leads','Next task should go to lead specialist';
+ o:=o||'{"email":{"kind":"email","account":"gmail","to":"test@example.invalid","subject":"Fixture draft","body":"Nothing is sent."}}'::jsonb;
+ perform public.office_worker(token,'complete',jsonb_build_object('task_id',claim->'task'->>'id','attempt_id',claim->>'attempt_id','output',o));
+ select id,snapshot_hash into aid,hash from public.office_actions where workspace_id=w;
+ caught:=false;begin perform public.office_command('dispatch',jsonb_build_object('id',aid,'hash',hash));exception when others then caught:=true;end;assert caught,'Unapproved dispatch must fail';
+ caught:=false;begin perform public.office_command('approve',jsonb_build_object('id',aid));exception when others then caught:=true;end;assert caught,'Missing approval hash must fail';
+ perform public.office_command('approve',jsonb_build_object('id',aid,'hash',hash));
+ perform public.office_command('dispatch',jsonb_build_object('id',aid,'hash',hash));
+ perform public.office_executor(executor,'claim',jsonb_build_object('id',aid,'hash',hash));
+ caught:=false;begin perform public.office_executor(executor,'claim',jsonb_build_object('id',aid,'hash',hash));exception when others then caught:=true;end;assert caught,'Make replay must not claim twice';
+ caught:=false;begin perform public.office_command('dispatch',jsonb_build_object('id',aid,'hash',hash));exception when others then caught:=true;end;assert caught,'Dispatched action must never resend';
+ perform public.office_command('unknown',jsonb_build_object('id',aid,'hash',hash));
+ caught:=false;begin perform public.office_command('dispatch',jsonb_build_object('id',aid,'hash',hash));exception when others then caught:=true;end;assert caught,'Unknown result must never resend';
+ perform public.office_executor(executor,'complete',jsonb_build_object('id',aid,'hash',hash,'provider_id','fixture-provider-id'));
+ caught:=false;begin perform public.office_executor(executor,'complete',jsonb_build_object('id',aid,'hash',hash,'provider_id','fixture-provider-id'));exception when others then caught:=true;end;assert caught,'Duplicate provider callbacks must not change final results';
+ -- Expire a live attempt and prove only the newly claimed attempt can complete it.
+ claim:=public.office_worker(token,'claim');queue:='office_'||replace(w::text,'-','');
+ update app_private.jobs set lease_until=now()-interval '1 second' where task_id=(claim->'task'->>'id')::uuid;
+ perform pgmq.set_vt(queue,(select message_id from app_private.jobs where task_id=(claim->'task'->>'id')::uuid),0);
+ second:=public.office_worker(token2,'claim');assert second->>'attempt_id' is distinct from claim->>'attempt_id','Recovery must replace fencing token';
+ caught:=false;begin perform public.office_worker(token,'complete',jsonb_build_object('task_id',claim->'task'->>'id','attempt_id',claim->>'attempt_id','output',o));exception when others then caught:=true;end;assert caught,'Stale attempt must fail';
+ perform public.office_command('pause','{"paused":true}');
+ caught:=false;begin perform public.office_worker(token2,'heartbeat',jsonb_build_object('task_id',second->'task'->>'id','attempt_id',second->>'attempt_id'));exception when others then caught:=true;end;assert caught,'Pause must stop heartbeats';
+ perform set_config('request.jwt.claim.sub',other::text,true);
+ assert public.office_snapshot()->'workspace'='null'::jsonb,'Another identity must not see office';
+ execute 'set local role authenticated';
+ assert (select count(*) from public.office_tasks)=0,'RLS must hide another CEO tasks';
+ execute 'reset role';
+ caught:=false;begin perform public.office_command('bootstrap','{}');exception when others then caught:=true;end;assert caught,'CEO allowlist must block another identity';
+ assert not has_table_privilege('anon','public.office_tasks','select'),'Anonymous table access must be denied';
+ assert not has_table_privilege('authenticated','public.office_actions','update'),'Browser identities cannot rewrite approvals';
+ assert not has_function_privilege('anon','public.office_command(text,jsonb)','execute'),'Anonymous commands must be denied';
+ raise notice 'Office database integration assertions passed';
+end $$;
+rollback;

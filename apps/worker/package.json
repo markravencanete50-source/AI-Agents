@@ -1,0 +1,1 @@
+{"name":"@office/worker","version":"0.1.0","private":true,"type":"module","scripts":{"start":"tsx src/index.ts","check":"tsx src/index.ts --check","typecheck":"tsc --noEmit"},"dependencies":{"@office/contracts":"*","@openai/codex-sdk":"0.159.2","@supabase/supabase-js":"2.117.2","cheerio":"1.2.0","dotenv":"18.0.4"}}
