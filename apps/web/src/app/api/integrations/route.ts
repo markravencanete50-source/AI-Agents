@@ -1,0 +1,2 @@
+import { authenticatedClient,apiError } from '@/lib/server';
+export async function GET(){try{await authenticatedClient();return Response.json({supabase:true,make:!!(process.env.MAKE_WEBHOOK_URL&&process.env.MAKE_SIGNING_SECRET&&process.env.MAKE_EXECUTOR_TOKEN&&process.env.MAKE_CALLBACK_SECRET),cloudinary:!!(process.env.CLOUDINARY_CLOUD_NAME&&process.env.CLOUDINARY_API_KEY&&process.env.CLOUDINARY_API_SECRET)},{headers:{'Cache-Control':'no-store'}});}catch(e){return apiError(e);}}

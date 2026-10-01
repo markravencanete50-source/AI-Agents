@@ -1,0 +1,7 @@
+import { runHandoff,type Claim } from '../apps/worker/src/engine.ts';
+const started=Date.now();
+const coding=process.argv.includes('--codex');
+const video=process.argv.includes('--video');
+const claim={task:{id:'local-smoke',workspace_id:'local',objective_id:'local',project_id:null,title:coding?'Review the provided office source evidence and identify two concrete correctness risks. Do not execute any tools or edit files.':video?'In at most 300 words, prepare a motion graphics and editing brief for a 20-second vertical company introduction. No footage, transcript, brand assets or music have been provided. Be explicit about missing assets; do not fabricate timecodes or claim a render.':'Prepare a three-step internal checklist for reviewing a client website. No email or external actions.',template:coding?'development':video?'video':'automation',agent_id:coding?'principal':video?'video':'coo',step:0,status:'working',input:{domains:[],...(coding?{repository_key:'office'}:{})},output:null,error:null,created_at:new Date().toISOString(),updated_at:new Date().toISOString()},attempt_id:'local',handoffs:[],project:null} satisfies Claim;
+const result=await runHandoff(claim,AbortSignal.timeout(300000));
+console.log(JSON.stringify({model:coding?'Codex subscription':process.env.OLLAMA_MODEL??'qwen3.5:9b',seconds:Math.round((Date.now()-started)/1000),summary:result.summary,deliverable:result.deliverable,limitations:result.limitations,emailProposed:!!result.email},null,2));
