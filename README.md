@@ -31,6 +31,7 @@ Leave the worker running and the laptop awake. Closing the office browser does n
 - Eighteen articulated robots with desks, individual keyboard keys, department areas and a central CEO workstation. Dark mode persists locally; immersive Office fills the screen; click robots for work cards; scroll/pinch or use the overview controls to zoom up to 500%.
 - Principal → frontend → backend → QA → principal development reviews; eight SEO specialist handoffs; COO-led lead and automation workflows, plus video/motion, graphic-design and social campaign handoffs.
 - Real Supabase tasks, durable per-office queues, transactional events, live updates, pause, cancellation, worker pairing/revocation, heartbeat leases, and stale-attempt rejection.
+- Click any teammate to inspect real task stages, waiting reasons, recent activity, saved work and streamed local-model drafts. Open work cards refresh every three seconds and disclose delayed connections. Worker RPCs retry transient transport failures within the lease window; ambiguous claims are never automatically repeated.
 - CEO-only commands, RLS, immutable email snapshots, approval expiry, explicit dispatch, replay-resistant Make claims, and authenticated provider results.
 - Bounded public website evidence, Ollama structured handoffs, and opt-in subscription Codex repository reviews.
 - Cloudinary authenticated uploads and provider-verified media metadata when configured.

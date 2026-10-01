@@ -6,6 +6,8 @@ Click **Office** in the navigation to enter a room-only view. Escape returns to 
 
 Drag to orbit. Scroll or pinch to zoom, and right-drag/two-finger drag to pan. The overview also has zoom buttons, with a range from roughly 55% to 500%. In immersive mode, `+`/`=` and `-` change zoom; `0` resets it. A maximum zoom crops the room intentionally so individual keyboards and robots can be inspected. Dark mode is available in the header and Settings, and is remembered on that browser. Reduced motion disables walking, typing, blinking and breathing movements.
 
+Robot, role badge, sidebar teammate, team-list tile and workflow buttons all open the same work card. While the card is open, the authenticated snapshot refreshes every three seconds. The card shows the assigned objective, task stage, elapsed time, waiting dependency, latest synchronization time, recent task events and saved handoffs with evidence links. Worker reports arrive every eight seconds and are marked delayed when no current task report is available. Local-model tasks stream a bounded, unfinished deliverable preview; only the validated final handoff is saved as completed. Codex tasks show execution stages and a final review, without a live desktop or editor screen. No private model thinking is displayed.
+
 Agents breathe and look around while idle. Working agents turn toward their keyboards and type with alternating hands. Their occasional bounded aisle walk uses measured displacement for limb timing and smooth heading changes. Motion depicts task state, not the precise physical activity of an AI process. No simulated completion is substituted for worker results.
 
 ## Creative roles

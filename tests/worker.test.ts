@@ -1,9 +1,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { isPublicAddress,readWebsite } from '../apps/worker/src/safe-fetch.ts';
-import { parseResult,cleanModelEnvironment,codexOutputSchema } from '../apps/worker/src/engine.ts';
+import { parseResult,cleanModelEnvironment,codexOutputSchema,suppliedWebsites } from '../apps/worker/src/engine.ts';
 import { objectiveSchema,projectSchema,agents,templates } from '../packages/contracts/src/index.ts';
 import { requestOrigin } from '../apps/web/src/lib/request-origin.ts';
+test('websites supplied in the CEO brief are reviewed without inventing destinations',()=>{
+ assert.deepEqual(suppliedWebsites({title:'Review https://example.com/. Then qualify prospects.',input:{domains:['https://example.com/']}} as never,null),['https://example.com/']);
+ assert.deepEqual(suppliedWebsites({title:'Find prospects anywhere',input:{}} as never,null),[]);
+});
 test('callback uses the public proxy origin and rejects malformed hosts',()=>{
  assert.equal(requestOrigin(new Request('http://localhost:3000/auth/callback',{headers:{host:'office.example.com','x-forwarded-proto':'https','x-forwarded-host':'evil.example'}})),'https://office.example.com');
  assert.throws(()=>requestOrigin(new Request('http://localhost:3000/',{headers:{host:'office.example.com/other'}})));
