@@ -2,7 +2,7 @@ import { z } from 'zod';
 
 export const agents = [
   {id:'coo',name:'Atlas',role:'Chief Operating Officer',short:'COO',department:'executive',color:'#344d48',provider:'ollama',mission:'Turn the CEO objective into a bounded brief. Check evidence, dependencies and decisions. Never authorize an external action.'},
-  {id:'leads',name:'Scout',role:'Lead Generation Specialist',short:'Lead Generation',department:'growth',color:'#e6a95c',provider:'ollama',mission:'Qualify supplied prospects using source evidence. Prepare factual outreach drafts. Never invent contacts or send email.'},
+  {id:'leads',name:'Scout',role:'Lead Generation Specialist',short:'Lead Generation',department:'growth',color:'#e6a95c',provider:'ollama',mission:'Search public marketplace listings for hiring demand that matches the CEO brief. Verify posting evidence, deduplicate opportunities and prepare an Excel lead list. Do not send messages or build automations.'},
   {id:'automation',name:'Relay',role:'Automation Specialist',short:'Automation',department:'operations',color:'#7b98b6',provider:'ollama',mission:'Design versioned Make scenarios, mapping, tests and recovery. Produce a proposal; never activate external writes.'},
   {id:'principal',name:'Archer',role:'Principal Developer',short:'Principal Dev',department:'engineering',color:'#5c86a4',provider:'codex',mission:'Review architecture and interface contracts. Assign bounded file scopes. Produce integration and release evidence. No production access.'},
   {id:'frontend',name:'Pixel',role:'Frontend Developer',short:'Frontend',department:'engineering',color:'#6b9fb0',provider:'codex',mission:'Review accessible responsive interfaces and propose scoped changes in the registered repository. Applied edits wait for the worktree execution gate.'},
@@ -23,7 +23,7 @@ export const agents = [
 export type Agent = typeof agents[number];
 export type AgentId = Agent['id'];
 export const templates = {
-  leads: {name:'Lead generation',description:'Research supplied prospects and prepare outreach for your review.',roles:['coo','leads','coo']},
+  leads: {name:'Lead generation',description:'Search marketplaces from your brief and download an Excel lead list. No target URLs or Make connection needed.',roles:['leads']},
   development: {name:'Website development',description:'Principal-led frontend, backend and independent QA handoffs.',roles:['principal','frontend','backend','qa','principal']},
   seo: {name:'SEO · AEO · GEO audit',description:'Eight specialists review source evidence and prepare a roadmap.',roles:['seo-principal','technical-seo','keywords','content','aeo-geo','schema','analytics','seo-qa']},
   automation: {name:'Make automation',description:'A versioned scenario proposal, test plan and COO review.',roles:['coo','automation','coo']},
@@ -32,10 +32,16 @@ export const templates = {
   social: {name:'Social media campaign',description:'A platform-specific calendar with graphic and video briefs. Publishing stays disabled.',roles:['coo','social','designer','video','social','coo']}
 } as const;
 const websiteUrl=z.string().url().refine(value=>['https:','http:'].includes(new URL(value).protocol),'Use an HTTP or HTTPS URL');
-export const objectiveSchema = z.object({title:z.string().trim().min(8).max(1200),template:z.enum(['leads','development','seo','automation','video','design','social']),project_id:z.string().uuid().nullable().optional(),input:z.object({domains:z.array(websiteUrl).max(10).default([]),recipient:z.string().email().optional(),repository_key:z.string().regex(/^[a-z0-9_-]{1,60}$/i).optional()}).default({domains:[]})});
+export const leadSearchSchema=z.object({markets:z.array(z.enum(['onlinejobs','weworkremotely'])).min(1).max(2).default(['onlinejobs']),limit:z.number().int().min(1).max(40).default(20),days:z.number().int().min(1).max(90).default(30),keywords:z.string().trim().max(200).default('')});
+export const objectiveSchema = z.object({title:z.string().trim().min(8).max(1200),template:z.enum(['leads','development','seo','automation','video','design','social']),project_id:z.string().uuid().nullable().optional(),input:z.object({domains:z.array(websiteUrl).max(10).default([]),recipient:z.string().email().optional(),repository_key:z.string().regex(/^[a-z0-9_-]{1,60}$/i).optional(),lead_search:leadSearchSchema.optional()}).default({domains:[]})}).transform(value=>value.template==='leads'?{...value,input:{lead_search:leadSearchSchema.parse(value.input.lead_search??{})}}:value);
 export const projectSchema = z.object({name:z.string().trim().min(2).max(100),url:websiteUrl.optional().or(z.literal('')),repository:z.string().url().refine(value=>new URL(value).origin==='https://github.com','Use a GitHub repository URL').optional().or(z.literal(''))});
 export const emailSchema = z.object({kind:z.literal('email'),account:z.literal('gmail'),to:z.string().email(),subject:z.string().min(1).max(200),body:z.string().min(1).max(12000)}).strict();
-export const resultSchema = z.object({summary:z.string().min(1).max(2000),deliverable:z.string().min(1).max(50000),sources:z.array(z.object({url:websiteUrl,title:z.string().max(200)})).max(25).default([]),limitations:z.array(z.string().max(500)).max(20).default([]),email:emailSchema.optional()});
+const marketplaceUrl=websiteUrl.refine(value=>{const u=new URL(value);return u.protocol==='https:'&&!u.username&&!u.password&&!u.port&&((u.hostname==='www.onlinejobs.ph'&&u.pathname.startsWith('/jobseekers/job/'))||(u.hostname==='weworkremotely.com'&&u.pathname.startsWith('/remote-jobs/')));},'Use a public marketplace posting');
+export const leadRowSchema=z.object({title:z.string().min(1).max(300),company:z.string().max(200),market:z.enum(['OnlineJobs.ph','We Work Remotely']),service:z.string().max(100),url:marketplaceUrl,posted_at:z.string().max(60),checked_at:z.string().datetime(),budget:z.string().max(200),location:z.string().max(200),company_size:z.string().max(150),icp_status:z.string().max(200),evidence:z.string().max(800),notes:z.string().max(500)}).strict();
+export const leadBatchSchema=z.object({generated_at:z.string().datetime(),brief:z.string().max(1200),rows:z.array(leadRowSchema).max(40),searches:z.array(z.object({market:z.string().max(100),query:z.string().max(200),url:websiteUrl,status:z.enum(['searched','unavailable']),count:z.number().int().min(0),note:z.string().max(500)})).max(12)}).strict();
+export type LeadRow=z.infer<typeof leadRowSchema>;
+export type LeadBatch=z.infer<typeof leadBatchSchema>;
+export const resultSchema = z.object({summary:z.string().min(1).max(2000),deliverable:z.string().min(1).max(50000),sources:z.array(z.object({url:websiteUrl,title:z.string().max(200)})).max(25).default([]),limitations:z.array(z.string().max(500)).max(20).default([]),email:emailSchema.optional(),lead_batch:leadBatchSchema.optional()});
 export type AgentResult = z.infer<typeof resultSchema>;
 export type Template = keyof typeof templates;
 export type Task = {id:string;workspace_id:string;objective_id:string;project_id:string|null;title:string;template:Template;agent_id:AgentId;step:number;status:'blocked'|'queued'|'working'|'completed'|'failed'|'cancelled';input:Record<string,unknown>;output:AgentResult|null;error:string|null;created_at:string;updated_at:string};

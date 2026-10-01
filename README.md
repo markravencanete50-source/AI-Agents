@@ -29,7 +29,7 @@ Leave the worker running and the laptop awake. Closing the office browser does n
 ## What works
 
 - Eighteen articulated robots with desks, individual keyboard keys, department areas and a central CEO workstation. Dark mode persists locally; immersive Office fills the screen; click robots for work cards; scroll/pinch or use the overview controls to zoom up to 500%.
-- Principal → frontend → backend → QA → principal development reviews; eight SEO specialist handoffs; COO-led lead and automation workflows, plus video/motion, graphic-design and social campaign handoffs.
+- Principal → frontend → backend → QA → principal development reviews; eight SEO specialist handoffs; standalone marketplace-to-Excel lead generation and COO-led automation workflows, plus video/motion, graphic-design and social campaign handoffs.
 - Real Supabase tasks, durable per-office queues, transactional events, live updates, pause, cancellation, worker pairing/revocation, heartbeat leases, and stale-attempt rejection.
 - Click any teammate to inspect real task stages, waiting reasons, recent activity, saved work and streamed local-model drafts. Open work cards refresh every three seconds and disclose delayed connections. Worker RPCs retry transient transport failures within the lease window; ambiguous claims are never automatically repeated.
 - CEO-only commands, RLS, immutable email snapshots, approval expiry, explicit dispatch, replay-resistant Make claims, and authenticated provider results.
@@ -38,7 +38,7 @@ Leave the worker running and the laptop awake. Closing the office browser does n
 
 ## Current boundaries
 
-Coding roles produce **read-only repository reviews and proposed changes**. Automatic worktree edits, independent executed QA, PR creation by the worker, and production releases are not enabled. SEO has no Search Console, analytics, rank, or search-volume connection yet. Lead generation qualifies **supplied sites**; it does not discover a new lead database or send unapproved outreach. Automation produces scenario designs until an executor is configured and tested.
+Coding roles produce **read-only repository reviews and proposed changes**. Automatic worktree edits, independent executed QA, PR creation by the worker, and production releases are not enabled. SEO has no Search Console, analytics, rank, or search-volume connection yet. Lead generation discovers public OnlineJobs.ph listings (with optional We Work Remotely RSS), checks service demand and produces a downloadable **Excel workbook** with a search log. No target URLs, Make connector or outreach are involved. Unknown startup status and employee counts are marked unverified; the search does not cover every marketplace. Automation produces scenario designs until an executor is configured and tested.
 
 Make and Cloudinary remain disconnected until their server settings are provided. No email has been sent and no existing Make scenario has been altered. The one-machine worker runs a single handoff at a time. Both the local 9B model and subscription Codex produced valid handoffs in smoke tests; broader task-quality evaluations are still required. Creative roles produce text briefs and proposals; media decoding, rendering and platform publishing adapters are not yet connected.
 

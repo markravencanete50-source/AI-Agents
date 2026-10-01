@@ -1,125 +1,251 @@
 'use client';
+
 import { useState,useEffect,useCallback,useMemo,useRef } from 'react';
+
 import dynamic from 'next/dynamic';
+
 import Link from 'next/link';
+
 import { ArrowUpRight,ArrowUp,ArrowRight,Plus,Minus,ChevronDown,ChevronRight,Check,CheckCheck,X,LayoutGrid,List,Settings2,Search,Command,Monitor,GitBranch,Mail,Workflow,ShieldCheck,Pause,Play,Copy,LogOut,Sun,Moon,Maximize2,Activity,Folder,Clock,ExternalLink,FileText,Radio,Upload,LoaderCircle } from 'lucide-react';
+
 import { agents,role,templates,emptySnapshot,objectiveSchema,projectSchema,type AgentId,type Snapshot,type Task,type Action,type Template } from '@office/contracts';
+
 import { browserClient } from '@/lib/supabase';
+
 import { signInFailure,signInRecovery } from '@/lib/auth-recovery';
+
 import { demoSnapshot } from '@/lib/demo';
+
 import AgentWorkPanel from './agent-work-panel';
+
 const OfficeScene=dynamic(()=>import('./office-scene'),{ssr:false,loading:()=> <div className="scene-loading"><span className="orbit-spinner"/><p>Opening the office…</p></div>});
+
 type View='office'|'tasks'|'approvals'|'projects'|'settings';
+
 const departmentNames:Record<string,string>={executive:'Leadership',engineering:'Development',search:'SEO & Intelligence',growth:'Growth',operations:'Operations',creative:'Creative & Social'};
+
 const time=(value:string)=>new Date(value).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
+
 function Status({status}:{status:string}){return <span className={`status status-${status}`}><i/>{status.replaceAll('_',' ')}</span>;}
+
 function Avatar({id,size=''}:{id:string;size?:string}){const a=role(id);return <span className={`avatar ${size}`} style={{background:`${a.color}25`,color:a.color}}><span className="bot-face"><i/><i/></span></span>;}
+
 function ActionCard({action,onCommand,onDispatch,demo}:{action:Action;onCommand:(command:string,data:Record<string,unknown>)=>Promise<unknown>;onDispatch:(action:Action)=>void;demo:boolean}){
+
  const [busy,setBusy]=useState(false),[providerId,setProviderId]=useState('');
+
  async function decide(command:string){setBusy(true);try{await onCommand(command,{id:action.id,hash:action.snapshot_hash,...(command==='reconcile'?{provider_id:providerId}:{})});}catch{/* The command handler presents the error. */}finally{setBusy(false);}}
+
  return <article className="action-card"><div className="row between"><span className="eyebrow"><Mail size={13}/> EMAIL PROPOSAL</span><Status status={action.status}/></div><h3>{action.snapshot.subject}</h3><div className="recipient">To <strong>{action.snapshot.to}</strong></div><pre className="email-body">{action.snapshot.body}</pre><div className="approval-note"><ShieldCheck size={15}/><span>Your approval applies to this exact recipient and message. {demo?'Demo only.':action.expires_at?`Expires ${new Date(action.expires_at).toLocaleString()}.`:'Nothing has been sent.'}</span></div>
+
  {action.status==='proposed'&&<div className="row"><button disabled={busy} className="button primary" onClick={()=>decide('approve')}><Check size={15}/>Approve draft</button><button disabled={busy} className="button" onClick={()=>decide('reject')}>Reject</button></div>}
+
  {action.status==='approved'&&<div className="row"><button className="button primary" onClick={()=>onDispatch(action)}><ArrowUpRight size={15}/>Send via Make</button><button className="button" disabled={busy} onClick={()=>decide('revoke')}>Revoke</button></div>}
+
  {['dispatching','executing','outcome_unknown'].includes(action.status)&&<div className="reconcile"><p>Inspect Make and Gmail before recording the verified result. This action will not resend automatically.</p><label>Verified Gmail message ID<input value={providerId} onChange={e=>setProviderId(e.target.value)} placeholder="Provider message ID"/></label><button className="button" disabled={!providerId||busy} onClick={()=>decide('reconcile')}>Record verified result</button></div>}
+
  </article>;
+
 }
+
 function ObjectiveCard({group,onSelect,onCancel}:{group:Task[];onSelect:(id:AgentId)=>void;onCancel:(id:string)=>void}){
+
  const currentTask=group.find(t=>t.status==='working'||t.status==='queued')??group.at(-1)!;const done=group.filter(t=>t.status==='completed').length;
- return <article className="objective-card"><div className="row between"><span className="eyebrow">{templates[group[0].template].name}</span><Status status={group.some(t=>t.status==='failed')?'failed':done===group.length?'completed':currentTask.status}/></div><h3>{group[0].title}</h3><div className="workflow-steps">{group.map((t,i)=><div key={t.id}><button aria-label={`Select ${role(t.agent_id).name}`} onClick={()=>onSelect(t.agent_id)}><Avatar id={t.agent_id}/><span>{role(t.agent_id).short}</span><small>{t.status==='completed'?<Check size={12}/>:t.status==='working'?<Activity size={12}/>:<span/>}</small></button>{i<group.length-1&&<ArrowRight size={13}/>}</div>)}</div><div className="objective-footer"><span>{done} of {group.length} handoffs complete</span><button onClick={()=>onCancel(group[0].objective_id)} disabled={group.every(t=>['completed','cancelled'].includes(t.status))}>Cancel objective</button></div>{currentTask.error&&<p className="error-inline">{currentTask.error}</p>}</article>;
+
+ return <article className="objective-card"><div className="row between"><span className="eyebrow">{templates[group[0].template].name}</span><Status status={group.some(t=>t.status==='failed')?'failed':done===group.length?'completed':currentTask.status}/></div><h3>{group[0].title}</h3><div className="workflow-steps">{group.map((t,i)=><div key={t.id}><button aria-label={`Select ${role(t.agent_id).name}`} onClick={()=>onSelect(t.agent_id)}><Avatar id={t.agent_id}/><span>{role(t.agent_id).short}</span><small>{t.status==='completed'?<Check size={12}/>:t.status==='working'?<Activity size={12}/>:<span/>}</small></button>{i<group.length-1&&<ArrowRight size={13}/>}</div>)}</div><div className="objective-footer"><span>{done} of {group.length} handoffs complete</span><button onClick={()=>onCancel(group[0].objective_id)} disabled={group.every(t=>['completed','cancelled'].includes(t.status))}>Cancel objective</button></div>{group.find(t=>t.agent_id==='leads'&&t.status==='completed'&&t.output?.lead_batch)&&<a className="button primary lead-download" href={`/api/leads/${group.find(t=>t.agent_id==='leads'&&t.output?.lead_batch)!.id}/export`}>Download Excel</a>}{currentTask.error&&<p className="error-inline">{currentTask.error}</p>}</article>;
+
 }
+
 export default function OfficeApp(){
+
  const [client]=useState(browserClient),[live,setLive]=useState(false),[email,setEmail]=useState(''),[snapshot,setSnapshot]=useState<Snapshot>(emptySnapshot),[demoData,setDemoData]=useState(demoSnapshot);
+
  const [view,setView]=useState<View>('office'),[selected,setSelected]=useState<AgentId>('coo'),[filter,setFilter]=useState('all'),[listView,setListView]=useState(false),[zoom,setZoom]=useState(45),[reduced,setReduced]=useState(false),[query,setQuery]=useState(''),[now,setNow]=useState(0);
+
  const [modal,setModal]=useState<'objective'|'project'|'login'|'agent'|'ceo'|null>(null),[notice,setNotice]=useState(''),[loading,setLoading]=useState(false),[authEmail,setAuthEmail]=useState(''),[otp,setOtp]=useState(''),[sent,setSent]=useState(false),[pairedToken,setPairedToken]=useState(''),[executorToken,setExecutorToken]=useState('');
+
  const [dark,setDark]=useState(false),[themeReady,setThemeReady]=useState(false),[immersive,setImmersive]=useState(false);
+
  const identityRef=useRef<string|null>(null),generationRef=useRef(0);
+
  const [syncedAt,setSyncedAt]=useState(0),[syncError,setSyncError]=useState(false);
+
  const [signInError,setSignInError]=useState('');const emailCodeEnabled=process.env.NEXT_PUBLIC_AUTH_EMAIL_MODE==='otp';
- const [template,setTemplate]=useState<Template>('leads'),[objective,setObjective]=useState(''),[projectId,setProjectId]=useState(''),[domains,setDomains]=useState(''),[recipient,setRecipient]=useState(''),[repositoryKey,setRepositoryKey]=useState('');
+
+ const [template,setTemplate]=useState<Template>('leads'),[objective,setObjective]=useState(''),[projectId,setProjectId]=useState(''),[domains,setDomains]=useState(''),[repositoryKey,setRepositoryKey]=useState('');
+
+ const [leadMarkets,setLeadMarkets]=useState<('onlinejobs'|'weworkremotely')[]>(['onlinejobs']),[leadLimit,setLeadLimit]=useState(20),[leadDays,setLeadDays]=useState(30),[leadKeywords,setLeadKeywords]=useState('');
+
  const [projectName,setProjectName]=useState(''),[projectUrl,setProjectUrl]=useState(''),[projectRepo,setProjectRepo]=useState(''),[integrations,setIntegrations]=useState({supabase:false,make:false,cloudinary:false});
+
  const fileRef=useRef<HTMLInputElement>(null),dialogRef=useRef<HTMLDivElement>(null);
+
  const data=live?snapshot:demoData,agent=role(selected),workspaceId=snapshot.workspace?.id;
+
  const refresh=useCallback(async()=>{const generation=generationRef.current;if(!identityRef.current)return;const response=await fetch('/api/office',{cache:'no-store'});const body=await response.json();if(generation!==generationRef.current||!identityRef.current)return;if(!response.ok)throw new Error(body.error);setSnapshot(body);setSyncedAt(Date.now());setSyncError(false);},[]);
+
  useEffect(()=>{const timer=setTimeout(()=>{const url=new URL(window.location.href),message=signInRecovery(url);if(message){setSignInError(message);setSent(false);setOtp('');setModal('login');for(const key of ['error','error_code','error_description','signin','code'])url.searchParams.delete(key);if(new URLSearchParams(url.hash.slice(1)).has('error'))url.hash='';history.replaceState(null,'',url.pathname+url.search+url.hash);}else if(url.searchParams.has('code')){window.location.replace('/auth/callback?code='+encodeURIComponent(url.searchParams.get('code')!));}},0);return()=>clearTimeout(timer);},[]);
+
  useEffect(()=>{if(!client)return;let mounted=true;function sync(user:{id:string;email?:string}|null){if(!mounted)return;if(identityRef.current!==(user?.id??null)){identityRef.current=user?.id??null;generationRef.current++;setSnapshot(emptySnapshot);setPairedToken('');setExecutorToken('');setIntegrations({supabase:false,make:false,cloudinary:false});}setLive(!!user);setEmail(user?.email??'');}const generation=generationRef.current;client.auth.getUser().then(({data})=>{if(generation===generationRef.current)sync(data.user);});const {data:{subscription}}=client.auth.onAuthStateChange((_event,session)=>sync(session?.user??null));return()=>{mounted=false;subscription.unsubscribe();};},[client]);
+
  useEffect(()=>{const timer=setTimeout(()=>{setDark(localStorage.getItem('orbit-theme')==='dark');setThemeReady(true);},0);return()=>clearTimeout(timer);},[]);
+
  useEffect(()=>{if(!themeReady)return;document.documentElement.dataset.theme=dark?'dark':'light';localStorage.setItem('orbit-theme',dark?'dark':'light');},[dark,themeReady]);
+
  useEffect(()=>{const change=()=>{setImmersive(window.location.hash==='#office');};const timer=setTimeout(change,0);window.addEventListener('hashchange',change);function key(e:KeyboardEvent){if(modal)return;if(e.key==='Escape'&&window.location.hash==='#office'){history.replaceState(null,'',location.pathname+location.search);setImmersive(false);}if(immersive&&['+','=','-','0'].includes(e.key)){e.preventDefault();setZoom(value=>e.key==='0'?45:Math.max(25,Math.min(225,value+(e.key==='-'?-10:10))));}}window.addEventListener('keydown',key);return()=>{clearTimeout(timer);window.removeEventListener('hashchange',change);window.removeEventListener('keydown',key);};},[modal,immersive]);
+
  function openOffice(){setView('office');setListView(false);setZoom(55);setImmersive(true);window.location.hash='office';}
+
  function leaveOffice(){setImmersive(false);history.replaceState(null,'',location.pathname+location.search);}
+
  function selectRobot(id:AgentId|'ceo'){if(id==='ceo')setModal('ceo');else{setSelected(id);setModal('agent');}}
+
  useEffect(()=>{if(!live)return;let cancelled=false;const generation=generationRef.current;const initial=setTimeout(()=>refresh().catch(e=>{if(!cancelled)setNotice(e.message);}),0);fetch('/api/integrations').then(r=>r.json()).then(d=>{if(!cancelled&&generation===generationRef.current&&!d.error)setIntegrations(d);}).catch(()=>{});const timer=setInterval(()=>refresh().catch(()=>setSyncError(true)),15000);return()=>{cancelled=true;clearTimeout(initial);clearInterval(timer);};},[live,email,refresh]);
+
  useEffect(()=>{if(!live||modal!=='agent')return;const timer=setInterval(()=>refresh().catch(()=>setSyncError(true)),3000);return()=>clearInterval(timer);},[live,modal,refresh]);
+
  useEffect(()=>{if(!client||!live||!workspaceId)return;const channel=client.channel(`office-${workspaceId}`).on('postgres_changes',{event:'INSERT',schema:'public',table:'office_events',filter:`workspace_id=eq.${workspaceId}`},()=>refresh().catch(()=>{})).subscribe();return()=>{void client.removeChannel(channel);};},[client,live,workspaceId,refresh]);
+
  useEffect(()=>{const media=window.matchMedia('(prefers-reduced-motion: reduce)');const sync=()=>setReduced(media.matches);const timer=setTimeout(sync,0);media.addEventListener('change',sync);return()=>{clearTimeout(timer);media.removeEventListener('change',sync);};},[]);
+
  useEffect(()=>{const tick=()=>setNow(Date.now());const first=setTimeout(tick,0);const timer=setInterval(tick,1000);return()=>{clearTimeout(first);clearInterval(timer);};},[]);
+
  useEffect(()=>{if(!notice)return;const timer=setTimeout(()=>setNotice(''),7000);return()=>clearTimeout(timer);},[notice]);
+
  useEffect(()=>{if(!modal)return;const previous=document.body.style.overflow;document.body.style.overflow='hidden';return()=>{document.body.style.overflow=previous;};},[modal]);
+
  useEffect(()=>{if(!modal)return;const previous=document.activeElement as HTMLElement|null;const dialog=dialogRef.current;dialog?.querySelector<HTMLElement>('input,select,button')?.focus();function key(e:KeyboardEvent){if(e.key==='Escape')setModal(null);if(e.key==='Tab'&&dialog){const items=Array.from(dialog.querySelectorAll<HTMLElement>('button:not([disabled]),input:not([disabled]),select,textarea,a[href]'));const first=items[0],last=items.at(-1);if(e.shiftKey&&document.activeElement===first){e.preventDefault();last?.focus();}else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first?.focus();}}}document.addEventListener('keydown',key);return()=>{document.removeEventListener('keydown',key);previous?.focus();};},[modal]);
+
  const activeIds=useMemo(()=>data.tasks.filter(t=>t.status==='working').map(t=>t.agent_id),[data.tasks]);
+
  const pending=data.actions.filter(a=>a.status==='proposed').length;
+
  const agentTasks=data.tasks.filter(t=>t.agent_id===selected),working=agentTasks.find(t=>t.status==='working');
+
  const onlineWorkers=data.workers.filter(w=>!w.revoked&&w.last_seen&&now-new Date(w.last_seen).getTime()<120000);
+
  const visibleAgents=agents.filter(a=>(filter==='all'||a.department===filter)&&`${a.name} ${a.role}`.toLowerCase().includes(query.toLowerCase()));
+
  const objectives=useMemo(()=>{const groups=new Map<string,Task[]>();data.tasks.forEach(t=>groups.set(t.objective_id,[...(groups.get(t.objective_id)??[]),t]));return Array.from(groups.values()).map(g=>g.sort((a,b)=>a.step-b.step));},[data.tasks]);
+
  async function command(commandName:string,input:Record<string,unknown>={}){
+
   if(commandName==='objective'||commandName==='project'){const validation=(commandName==='objective'?objectiveSchema:projectSchema).safeParse(input);if(!validation.success){const message=validation.error.issues[0]?.message??'Check the task details.';setNotice(message);throw new Error(message);}input=validation.data;}
+
   if(!live){if(commandName==='objective'){const id=crypto.randomUUID();const roles=templates[input.template as Template].roles;const created=roles.map((a,i)=>({id:crypto.randomUUID(),workspace_id:'demo',objective_id:id,project_id:null,title:String(input.title),template:input.template as Template,agent_id:a as AgentId,step:i,status:i===0?'queued':'blocked',input:input.input??{},output:null,error:null,created_at:new Date().toISOString(),updated_at:new Date().toISOString()} as Task));setDemoData(old=>({...old,tasks:[...created,...old.tasks]}));setNotice('Sample objective added. Sign in and pair your laptop to run real work.');}
+
    else if(commandName==='project'){setDemoData(old=>({...old,projects:[{id:crypto.randomUUID(),name:String(input.name),url:String(input.url??''),repository:String(input.repository??''),created_at:new Date().toISOString()},...old.projects]}));setNotice('Sample project added in demo mode.');}
+
    else if(commandName==='pause')setDemoData(old=>({...old,workspace:old.workspace?{...old.workspace,paused:!!input.paused}:null}));
+
    else if(['approve','reject','revoke'].includes(commandName))setDemoData(old=>({...old,actions:old.actions.map(a=>a.id===input.id?{...a,status:commandName==='approve'?'approved':commandName==='reject'?'rejected':'revoked'}:a)}));
+
    else if(commandName==='cancel')setDemoData(old=>({...old,tasks:old.tasks.map(t=>t.objective_id===input.id&&['queued','blocked','working'].includes(t.status)?{...t,status:'cancelled'}:t)}));
+
    else {setModal('login');setNotice('Sign in to connect your real workspace.');}return null;}
+
   try{const response=await fetch('/api/office',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({command:commandName,data:input})});const body=await response.json();if(!response.ok)throw new Error(body.error);await refresh();return body;}catch(error){setNotice(error instanceof Error?error.message:'Request failed');throw error;}
+
  }
- async function submitObjective(e:React.FormEvent){e.preventDefault();setLoading(true);try{const urls=domains.split(/[\n,]/).map(v=>v.trim()).filter(Boolean);await command('objective',{title:objective,template,project_id:projectId||null,input:{domains:urls,...(recipient?{recipient}:{}),...(repositoryKey?{repository_key:repositoryKey}:{})}});setModal(null);setObjective('');setView('tasks');}catch{}finally{setLoading(false);}}
+
+ async function submitObjective(e:React.FormEvent){e.preventDefault();setLoading(true);try{const urls=domains.split(/[\n,]/).map(v=>v.trim()).filter(Boolean);await command('objective',{title:objective,template,project_id:projectId||null,input:template==='leads'?{lead_search:{markets:leadMarkets,limit:leadLimit,days:leadDays,keywords:leadKeywords}}:{domains:urls,...(repositoryKey?{repository_key:repositoryKey}:{})}});setModal(null);setObjective('');setView('tasks');}catch{}finally{setLoading(false);}}
+
  async function submitProject(e:React.FormEvent){e.preventDefault();setLoading(true);try{await command('project',{name:projectName,url:projectUrl,repository:projectRepo});setModal(null);setProjectName('');}catch{}finally{setLoading(false);}}
+
  async function signIn(e:React.FormEvent){e.preventDefault();if(!client){setNotice('Supabase needs its publishable connection settings.');return;}setLoading(true);try{const {error}=sent&&emailCodeEnabled?await client.auth.verifyOtp({email:authEmail,token:otp,type:'email'}):await client.auth.signInWithOtp({email:authEmail,options:{emailRedirectTo:window.location.origin+'/auth/callback'}});if(error)throw error;setSignInError('');if(sent&&emailCodeEnabled){setModal(null);setSent(false);setOtp('');}else setSent(true);}catch(e){const error=e as {code?:string;message?:string};const reason=signInFailure(error),message=reason==='rate_limit'?signInRecovery(new URL('https://office.invalid/?signin=rate_limit'))!:reason==='expired'?signInRecovery(new URL('https://office.invalid/?signin=expired'))!:e instanceof Error?e.message:'Sign-in failed';setSignInError(message);setNotice(message);}finally{setLoading(false);}}
+
  async function pair(){setLoading(true);try{const result=await command('pair',{name:'My laptop'});if(result)setPairedToken(result.token);}catch{}finally{setLoading(false);}}
+
  async function dispatch(action:Action){if(!live){setNotice('Demo mode: no email can be sent.');return;}setLoading(true);try{const response=await fetch('/api/dispatch',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({id:action.id,hash:action.snapshot_hash})});const body=await response.json();setNotice(body.error??body.message);await refresh();}catch(error){setNotice(error instanceof Error?error.message:'Dispatch failed. Inspect the action status before trying again.');}finally{setLoading(false);}}
+
  async function pairExecutor(){if(!live){setModal('login');return;}setLoading(true);try{const response=await fetch('/api/executor',{method:'POST'});const result=await response.json();if(!response.ok)throw new Error(result.error);setExecutorToken(result.token);}catch(error){setNotice(error instanceof Error?error.message:'Pairing failed');}finally{setLoading(false);}}
+
  async function upload(file:File){setLoading(true);try{const signed=await fetch('/api/media',{method:'POST'});const payload=await signed.json();if(!signed.ok)throw new Error(payload.error);const form=new FormData();form.append('file',file);for(const key of ['api_key','timestamp','folder','type','signature'])form.append(key,String(payload[key]));const response=await fetch(`https://api.cloudinary.com/v1_1/${payload.cloud_name}/auto/upload`,{method:'POST',body:form});if(!response.ok)throw new Error('Upload failed');const asset=await response.json();const record=await fetch('/api/media',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({public_id:asset.public_id,resource_type:asset.resource_type})});if(!record.ok)throw new Error('Uploaded, but the asset record could not be verified. Check Cloudinary before uploading again.');setNotice('Media uploaded and recorded with authenticated delivery.');}catch(e){setNotice(e instanceof Error?e.message:'Upload failed');}finally{setLoading(false);}}
+
  const renderTasks=(tasks:Task[])=>tasks.length?<div className="task-list">{tasks.map(t=><button key={t.id} className="task-item" onClick={()=>{selectRobot(t.agent_id);}}><Avatar id={t.agent_id}/><span><strong>{t.title}</strong><small>{role(t.agent_id).name} · {role(t.agent_id).short}</small></span><Status status={t.status}/><ChevronRight size={16}/></button>)}</div>:<div className="empty-state"><Command size={24}/><h3>A clear desk. A fresh start.</h3><p>Give your COO an objective to get the team moving.</p><button className="button primary" onClick={()=>setModal('objective')}>Create an objective <Plus size={14}/></button></div>;
+
  return <div className={`app-shell ${immersive?"immersive-mode":""}`}>
+
   <header className="app-header"><Link className="brand" href="/" aria-label="Orbit home"><span className="brand-mark"><span/></span><span>orbit<span className="brand-dot">.</span></span></Link><span className="header-divider"/><button className="workspace-name" onClick={()=>setView('projects')}>My company <ChevronDown size={13}/></button><nav aria-label="Main navigation"><button title="Immersive office · Escape or browser Back to leave · Scroll or pinch to zoom" onClick={openOffice}><Maximize2 size={14}/>Office</button>{([['office','Overview'],['tasks','Tasks'],['approvals','Approvals']] as const).map(([id,label])=><button key={id} className={view===id?'nav-active':''} onClick={()=>setView(id)}>{label}{id==='approvals'&&pending>0&&<span className="count-badge">{pending}</span>}</button>)}</nav><div className="header-end"><span className={`connection-pill ${live?'':'demo'}`}><i/>{live?'Live workspace':'Demo workspace'}</span><button className="icon-button" aria-label={dark?"Switch to light mode":"Switch to dark mode"} onClick={()=>setDark(value=>!value)}>{dark?<Sun size={17}/>:<Moon size={17}/>}</button><button className="icon-button" aria-label="Settings" onClick={()=>setView('settings')}><Settings2 size={17}/></button><button className="ceo-avatar" onClick={()=>live?setView('settings'):setModal('login')} aria-label={live?'CEO account':'Sign in as CEO'}>L</button></div></header>
+
   <div className="workspace-layout">
+
    <aside className="team-sidebar"><div className="sidebar-heading"><span className="eyebrow">YOUR TEAM</span><span className="subtle-count">{agents.length}</span></div><div className="team-search"><Search size={14}/><input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Find a teammate" aria-label="Find a teammate"/><kbd>⌘ K</kbd></div>
+
     <button className={`department-toggle ${filter==='all'?'active':''}`} onClick={()=>setFilter('all')}><LayoutGrid size={14}/>All departments<span>{agents.length}</span></button>
+
     <div className="team-scroll">{['executive','engineering','search','growth','operations','creative'].map(dept=><section className="department" key={dept}><button className="department-title" onClick={()=>setFilter(filter===dept?'all':dept)}><span>{departmentNames[dept]}</span><ChevronDown size={12}/></button>{visibleAgents.filter(a=>a.department===dept).map(a=>{const active=activeIds.includes(a.id);return <button key={a.id} className={`agent-row ${selected===a.id?'selected':''}`} onClick={()=>{selectRobot(a.id);}}><Avatar id={a.id}/><span><strong>{a.name}</strong><small>{a.short}</small></span><i className={`agent-dot ${active?'busy':''}`}/></button>;})}</section>)}</div>
+
     <div className="sidebar-bottom"><span className={`worker-indicator ${onlineWorkers.length?'online':''}`}><i/>{live?onlineWorkers.length?`${onlineWorkers.length} laptop online`:'Laptop offline':'Previewing your team'}</span><button onClick={()=>setView('settings')}>Connect your tools <ArrowUpRight size={14}/></button></div>
+
    </aside>
+
    <main className="main-content">
+
     <div className="page-heading"><div><div className="eyebrow"><span className="tiny-spark">✳</span> YOUR COMPANY, CONNECTED</div><h1>{view==='office'?'Your company, in motion.':view==='tasks'?'Good work starts here.':view==='approvals'?'The next move is yours.':view==='projects'?'A place for every project.':'Make yourself at home.'}</h1><p>{view==='office'?'Give direction. Watch the work. Approve what matters.':view==='tasks'?'One objective. The right people. A clear path forward.':view==='approvals'?'Review the details before anything reaches the outside world.':view==='projects'?'Keep client work, evidence and decisions in their own space.':'Your laptop does the work. Your office stays connected.'}</p></div><button className="button primary new-objective" onClick={()=>setModal('objective')}><Plus size={16}/>New objective</button></div>
+
     {!live&&<div className="demo-banner"><span><Sun size={16}/>You’re exploring a sample office. Activity shown here is a demonstration.</span><button onClick={()=>setModal('login')}>Open my real office <ArrowRight size={14}/></button></div>}
+
     {live&&!data.workspace&&<div className="initialize"><ShieldCheck size={24}/><h3>Welcome to your private office.</h3><p>Initialize your company workspace using your authorized CEO account.</p><button className="button primary" onClick={()=>command('bootstrap').catch(()=>{})}>Initialize my office</button></div>}
+
     <div className="workspace-stats"><span><i className="stat-dot"/>{activeIds.length}<small>working</small></span><span><Clock size={14}/>{data.tasks.filter(t=>t.status==='queued').length}<small>queued</small></span><span><ShieldCheck size={14}/>{pending}<small>need your approval</small></span><div/><button onClick={()=>command('pause',{paused:!data.workspace?.paused}).catch(()=>{})}>{data.workspace?.paused?<Play size={13}/>:<Pause size={13}/>} {data.workspace?.paused?'Resume office':'Pause office'}</button></div>
+
     {view==='office'&&<><section className="office-card"><div className="office-card-heading"><span><i className="live-dot"/>OFFICE FLOOR<span className="floor-number">01</span></span><div className="view-switch"><button aria-label="Enter immersive office" title="Office fills the screen; Escape or browser Back returns" onClick={openOffice}><Maximize2 size={14}/></button><button aria-label="3D office view" className={!listView?'active':''} onClick={()=>setListView(false)}><LayoutGrid size={14}/></button><button aria-label="Team list view" className={listView?'active':''} onClick={()=>setListView(true)}><List size={14}/></button></div></div>
+
      {listView?<div className="team-grid">{agents.map(a=><button key={a.id} onClick={()=>selectRobot(a.id)} className={selected===a.id?'selected':''}><Avatar id={a.id} size="large"/><strong>{a.name}</strong><small>{a.role}</small><Status status={activeIds.includes(a.id)?'working':'idle'}/></button>)}</div>:<div className="office-canvas"><OfficeScene key={immersive?"immersive":"overview"} activeIds={activeIds} selected={selected} onSelect={selectRobot} zoom={zoom} onZoomChange={setZoom} reduced={reduced} dark={dark} immersive={immersive} ceoOnline={live}/><div className="floor-caption"><span>Designed to work together.</span><small>Click a bot · drag to orbit · scroll to zoom</small></div><div className="canvas-controls"><button className="icon-button" aria-label="Zoom out" disabled={zoom<=25} onClick={()=>setZoom(z=>Math.max(25,z-10))}><Minus size={15}/></button><span>{Math.round(zoom/45*100)}%</span><button className="icon-button" aria-label="Zoom in" disabled={zoom>=225} onClick={()=>setZoom(z=>Math.min(225,z+10))}><Plus size={15}/></button></div></div>}
+
      <div className="floor-legend"><span><i style={{background:'#91b5bd'}}/>Development</span><span><i style={{background:'#b79cc9'}}/>SEO & Intelligence</span><span><i style={{background:'#dfbc82'}}/>Growth & Operations</span><span><i style={{background:"#d77984"}}/>Creative &amp; Social</span><span className="legend-end"><Radio size={12}/> {live?'Connected to real tasks':'Sample activity'}</span></div></section>
+
      <section className="brief-bar"><Avatar id="coo"/><div><strong>What are we working on next?</strong><p>Your COO will bring the right team together.</p></div><button onClick={()=>setModal('objective')}>Give Atlas an objective <ArrowUp size={16}/></button></section>
+
      <section className="activity-section"><div className="section-heading"><h2>On the desk <span>{objectives.length}</span></h2><button onClick={()=>setView('tasks')}>View all work <ArrowUpRight size={13}/></button></div>{renderTasks(data.tasks.filter(t=>t.status!=='blocked').slice(0,3))}</section></>}
+
     {view==='tasks'&&<section className="objectives">{objectives.length?objectives.map(group=><ObjectiveCard key={group[0].objective_id} group={group} onSelect={selectRobot} onCancel={id=>{void command('cancel',{id}).catch(()=>{});}}/>):renderTasks([])}</section>}
+
     {view==='approvals'&&<section className="approval-list">{data.actions.length?data.actions.map(a=><ActionCard key={a.id} action={a} onCommand={command} onDispatch={dispatch} demo={!live}/>):<div className="empty-state"><ShieldCheck size={30}/><h3>Nothing waiting on your decision.</h3><p>When the team prepares an external action, its exact details will appear here.</p><small>Approval never means a message has already been sent.</small></div>}</section>}
+
     {view==='projects'&&<section><div className="section-heading"><h2>Project spaces</h2><button className="button" onClick={()=>setModal('project')}><Plus size={14}/>Add project</button></div><div className="projects-grid">{data.projects.map(p=><article key={p.id} className="project-card"><span className="project-icon"><Folder size={23}/></span><h3>{p.name}</h3><p>{p.url||'No website registered yet'}</p><div className="row">{p.url&&<a href={p.url} target="_blank" rel="noreferrer" className="button"><ExternalLink size={13}/>Website</a>}{p.repository&&<a href={p.repository} target="_blank" rel="noreferrer" className="button"><GitBranch size={13}/>Repository</a>}</div><button className="project-objective" onClick={()=>{setProjectId(p.id);setModal('objective');}}>Start work here <ArrowRight size={15}/></button></article>)}</div>{!data.projects.length&&<div className="empty-state"><Folder size={28}/><h3>Give your first project a home.</h3><p>Add a name, website and optional GitHub repository.</p></div>}</section>}
+
     {view==='settings'&&<section className="settings-grid"><article className="settings-card"><div className="row between"><Monitor size={20}/><Status status={onlineWorkers.length?'online':'offline'}/></div><h3>Your local laptop</h3><p>Runs free Ollama models and subscription-authenticated Codex. Pair it once; keep it awake while the team works.</p><button className="button primary" disabled={loading} onClick={pair}><Plus size={14}/>Pair a laptop</button>{pairedToken&&<div className="token-box"><strong>Save this token on your laptop.</strong><p>It is shown once. Keep it out of GitHub and model prompts.</p><code>{pairedToken}</code><button className="button" onClick={()=>navigator.clipboard.writeText(pairedToken).then(()=>setNotice('Worker token copied.'))}><Copy size={13}/>Copy token</button></div>}{data.workers.map(w=><div className="paired-worker" key={w.id}><span>{w.name}<small>{w.last_seen?`Last seen ${time(w.last_seen)}`:'Not connected yet'}</small></span><button disabled={w.revoked} onClick={()=>command('revoke_worker',{id:w.id}).catch(()=>{})}>{w.revoked?'Revoked':'Revoke'}</button></div>)}</article>
+
      <article className="settings-card"><span className="eyebrow">CONNECTED TOOLS</span>{[{name:'Supabase',desc:'Workspace, tasks & live updates',icon:Activity,connected:live&&integrations.supabase},{name:'Make + Gmail',desc:'Approved external actions',icon:Workflow,connected:live&&integrations.make},{name:'Cloudinary',desc:'Authenticated image & video storage',icon:Upload,connected:live&&integrations.cloudinary}].map(i=><div className="integration" key={i.name}><i.icon size={19}/><span><strong>{i.name}</strong><small>{i.desc}</small></span><span className={`integration-state ${i.connected?'connected':''}`}>{i.connected?'Connected':'Not connected'}</span></div>)}<button className="button" disabled={loading} onClick={pairExecutor}>Pair Make executor</button>{executorToken&&<div className="token-box"><strong>Make executor credential — shown once</strong><p>Store as MAKE_EXECUTOR_TOKEN on the server. Pairing again revokes the previous executor.</p><code>{executorToken}</code><button className="button" onClick={()=>navigator.clipboard.writeText(executorToken).then(()=>setNotice("Executor token copied."))}><Copy size={13}/>Copy token</button></div>}<p className="settings-footnote">Server credentials stay outside the browser. Setup instructions are included in the repository.</p><input type="file" accept="image/*,video/*" hidden ref={fileRef} onChange={e=>{const f=e.target.files?.[0];if(f)void upload(f);e.target.value='';}}/><button className="button" disabled={!live||!integrations.cloudinary||loading} onClick={()=>fileRef.current?.click()}><Upload size={14}/>Upload media</button></article>
+
      <article className="settings-card"><Sun size={20}/><h3>Office preferences</h3><label className="toggle-row"><span>Dark mode<small>A quieter office after hours.</small></span><input type="checkbox" checked={dark} onChange={e=>setDark(e.target.checked)}/></label><label className="toggle-row"><span>Reduced motion<small>Keep the office calm and static.</small></span><input type="checkbox" checked={reduced} onChange={e=>setReduced(e.target.checked)}/></label><label className="toggle-row"><span>Use the team list<small>A complete view outside the 3D room.</small></span><input type="checkbox" checked={listView} onChange={e=>setListView(e.target.checked)}/></label></article>
+
      <article className="settings-card"><ShieldCheck size={20}/><h3>CEO account</h3><p>{live?email:'You are exploring a demo workspace.'}</p>{live?<button className="button" onClick={()=>client?.auth.signOut()}><LogOut size={14}/>Sign out</button>:<button className="button primary" onClick={()=>setModal('login')}>Sign in as CEO <ArrowRight size={14}/></button>}<p className="settings-footnote">Drafts, tests and research can run within registered scope. Email, production releases and automation activation need your approval.</p></article></section>}
+
     <footer className="main-footer"><span><span className="mini-brand">◉</span> A little company. A lot of possibility.</span><span>CEO in control <ShieldCheck size={12}/></span></footer>
+
    </main>
+
    {view==='office'&&<aside className="inspector"><div className="inspector-heading"><span className="eyebrow">TEAMMATE</span><span className="icon-muted"><Command size={14}/></span></div><div className="agent-profile"><Avatar id={selected} size="xl"/><h2>{agent.name}</h2><p>{agent.role}</p><Status status={working?'working':'idle'}/></div><div className="profile-tabs"><span className="active">Overview</span><button onClick={()=>setView('tasks')}>Work history</button></div><div className="inspector-scroll"><div className="inspector-section"><span className="eyebrow">ON THEIR DESK</span>{working?<div className="current-task"><span className="task-type"><FileText size={13}/>{templates[working.template].name}</span><h3>{working.title}</h3><div className="working-line"><span className="pulse-dot"/>{live?'Processing this handoff':'Sample work in progress'}</div></div>:<div className="idle-note"><span className="idle-illustration">✳</span><strong>Ready for the next thing.</strong><p>{live?'Give your COO an objective to assign work.':'Your real teammate will appear here when work starts.'}</p></div>}</div>
+
     <div className="inspector-section"><span className="eyebrow">WHAT THEY DO</span><p className="mission">{agent.mission}</p><div className="capability-tags"><span>{agent.provider==='codex'?'Codex subscription':'Free local model'}</span><span>CEO approval required</span></div></div>
+
     {agentTasks.filter(t=>t.output).slice(0,2).map(t=><div className="inspector-section" key={t.id}><span className="eyebrow"><CheckCheck size={13}/>LATEST HANDOFF</span><h3>{t.output!.summary}</h3><details><summary>Read deliverable <ChevronRight size={12}/></summary><pre className="deliverable">{t.output!.deliverable}</pre>{t.output!.limitations.map((v,i)=><p key={i} className="limitation">{v}</p>)}{t.output!.sources.map(s=><a key={s.url} href={s.url} rel="noreferrer" target="_blank" className="source-link">{s.title}<ExternalLink size={12}/></a>)}</details></div>)}
+
     <div className="inspector-section"><span className="eyebrow">OFFICE NOTES</span><div className="office-note"><ShieldCheck size={16}/><p>The team prepares the next move.<br/><strong>You make the final call.</strong></p></div></div></div><button className="assign-button" onClick={()=>{setTemplate(agent.department==='engineering'?'development':agent.department==='search'?'seo':agent.department==='creative'?agent.id==='video'?'video':agent.id==='designer'?'design':'social':agent.id==='automation'?'automation':'leads');setModal('objective');}}>Start work with this team <ArrowUpRight size={14}/></button></aside>}
+
   </div>
+
   {notice&&<div role="status" className="toast"><span>{notice}</span><button aria-label="Dismiss notification" onClick={()=>setNotice('')}><X size={15}/></button></div>}
+
   {modal&&<div className="modal-backdrop" onClick={()=>setModal(null)}><div className="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title" ref={dialogRef} onClick={e=>e.stopPropagation()}><div className="modal-heading"><span className="eyebrow">{modal==='agent'?'TEAMMATE WORK CARD':modal==='ceo'?'YOUR CENTRAL DESK':modal==='login'?'YOUR PRIVATE OFFICE':modal==='project'?'PROJECT SPACE':'DIRECTION FOR YOUR TEAM'}</span><button className="icon-button" aria-label="Close dialog" onClick={()=>setModal(null)}><X size={18}/></button></div><h2 id="modal-title">{modal==='agent'?agent.name:modal==='ceo'?'Your CEO desk.':modal==='login'?'Welcome back, CEO.':modal==='project'?'A new place to work.':'What would you like done?'}</h2>
 
-   {modal==='agent'&&<div className="agent-work-card"><div className="work-card-hero"><Avatar id={selected} size="xl"/><div><h3>{agent.role}</h3><p className="card-mission">{agent.provider==='codex'?'Codex subscription':'Local model'}</p></div></div><AgentWorkPanel data={data} id={selected} live={live} now={now} syncedAt={syncedAt} syncError={syncError} onRefresh={()=>refresh().catch(()=>setSyncError(true))}/><details><summary>About this teammate</summary><p className="card-mission">{agent.mission}</p></details><button className="button primary full" onClick={()=>{leaveOffice();setModal(null);setView('tasks');}}>View team tasks <ArrowRight size={15}/></button></div>}
+
+
+   {modal==='agent'&&<div className="agent-work-card"><div className="work-card-hero"><Avatar id={selected} size="xl"/><div><h3>{agent.role}</h3><p className="card-mission">{agent.id==='leads'?'Public marketplace research':agent.provider==='codex'?'Codex subscription':'Local model'}</p></div></div><AgentWorkPanel data={data} id={selected} live={live} now={now} syncedAt={syncedAt} syncError={syncError} onRefresh={()=>refresh().catch(()=>setSyncError(true))}/><details><summary>About this teammate</summary><p className="card-mission">{agent.mission}</p></details><button className="button primary full" onClick={()=>{leaveOffice();setModal(null);setView('tasks');}}>View team tasks <ArrowRight size={15}/></button></div>}
+
    {modal==='ceo'&&<div className="agent-work-card"><div className="ceo-desk-emblem"><ShieldCheck size={36}/></div><p className="card-mission">{live?email:'CEO avatar preview. Sign in to show your real online presence.'}</p><Status status={live?'online':'demo preview'}/><h3>You set the direction. You make the final call.</h3><p className="card-mission">{pending} proposals await your review. Your central desk is reserved for you; teammates cannot approve their own external actions.</p><button className="button primary full" onClick={()=>{leaveOffice();setModal(null);setView('approvals');}}>Review approvals <ShieldCheck size={15}/></button>{!live&&<button className="button full" onClick={()=>{leaveOffice();setModal('login');}}>Sign in as CEO</button>}</div>}
-   {modal==='objective'&&<form onSubmit={submitObjective}><label>Objective<textarea required minLength={8} maxLength={1200} value={objective} onChange={e=>setObjective(e.target.value)} placeholder="Find five suitable prospects and prepare thoughtful outreach…" rows={3}/></label><div className="form-columns"><label>Team workflow<select value={template} onChange={e=>setTemplate(e.target.value as Template)}>{Object.entries(templates).map(([key,t])=><option key={key} value={key}>{t.name}</option>)}</select></label><label>Project<select value={projectId} onChange={e=>setProjectId(e.target.value)}><option value="">Company-wide</option>{data.projects.map(p=><option key={p.id} value={p.id}>{p.name}</option>)}</select></label></div><p className="form-hint">{templates[template].description}</p>{['leads','seo'].includes(template)&&<label>{template==='leads'?'Supplied prospect website URLs':'Website URLs to audit'}<textarea value={domains} onChange={e=>setDomains(e.target.value)} placeholder="https://example.com (one URL per line)" rows={2}/></label>}{template==='leads'&&<label>Draft recipient (optional)<input type="email" value={recipient} onChange={e=>setRecipient(e.target.value)} placeholder="Use your own test address first"/></label>}{template==='development'&&<label>Registered local repository key<input value={repositoryKey} onChange={e=>setRepositoryKey(e.target.value)} placeholder="company-website"/><span className="form-hint">The worker resolves this key to a CEO-registered local repository.</span></label>}<div className="form-note"><ShieldCheck size={15}/>Creates internal work only. External actions wait for your approval.</div><button className="button primary full" disabled={loading}>{loading?<LoaderCircle size={16} className="spin"/>:<ArrowUp size={16}/>} {live?'Send to the COO':'Create sample objective'}</button></form>}
+
+   {modal==='objective'&&<form onSubmit={submitObjective}><label>Objective<textarea required minLength={8} maxLength={1200} value={objective} onChange={e=>setObjective(e.target.value)} placeholder="Describe your target market, services, company size and location…" rows={3}/></label><div className="form-columns"><label>Team workflow<select value={template} onChange={e=>setTemplate(e.target.value as Template)}>{Object.entries(templates).map(([key,t])=><option key={key} value={key}>{t.name}</option>)}</select></label><label>Project<select value={projectId} onChange={e=>setProjectId(e.target.value)}><option value="">Company-wide</option>{data.projects.map(p=><option key={p.id} value={p.id}>{p.name}</option>)}</select></label></div><p className="form-hint">{templates[template].description}</p>{template==='seo'&&<label>Website URLs to audit<textarea value={domains} onChange={e=>setDomains(e.target.value)} placeholder="https://example.com (one URL per line)" rows={2}/></label>}{template==='leads'&&<><fieldset className="lead-markets"><legend>Search marketplaces</legend>{([['onlinejobs','OnlineJobs.ph'],['weworkremotely','We Work Remotely']] as const).map(([key,name])=><label key={key}><input type="checkbox" checked={leadMarkets.includes(key)} onChange={e=>setLeadMarkets(old=>e.target.checked?[...old,key]:old.filter(v=>v!==key))}/>{name}</label>)}</fieldset><div className="form-columns"><label>Maximum leads<input type="number" min={1} max={40} required value={leadLimit} onChange={e=>setLeadLimit(Number(e.target.value))}/></label><label>Listing age<select value={leadDays} onChange={e=>setLeadDays(Number(e.target.value))}><option value={7}>Last 7 days</option><option value={30}>Last 30 days</option><option value={90}>Last 90 days</option></select></label></div><label>Search keywords (optional)<input value={leadKeywords} maxLength={200} onChange={e=>setLeadKeywords(e.target.value)} placeholder="web developer, automation, executive assistant"/><span className="form-hint">Leave blank to choose searches from your brief. Results include an Excel file and source evidence.</span></label></>}{template==='development'&&<label>Registered local repository key<input value={repositoryKey} onChange={e=>setRepositoryKey(e.target.value)} placeholder="company-website"/><span className="form-hint">The worker resolves this key to a CEO-registered local repository.</span></label>}<div className="form-note"><ShieldCheck size={15}/>Creates internal work only. External actions wait for your approval.</div><button className="button primary full" disabled={loading}>{loading?<LoaderCircle size={16} className="spin"/>:<ArrowUp size={16}/>} {live?template==='leads'?'Find leads & prepare Excel':'Send to the team':'Create sample objective'}</button></form>}
+
    {modal==='project'&&<form onSubmit={submitProject}><label>Project name<input required minLength={2} maxLength={100} value={projectName} onChange={e=>setProjectName(e.target.value)} placeholder="Company website"/></label><label>Website URL<input type="url" value={projectUrl} onChange={e=>setProjectUrl(e.target.value)} placeholder="https://example.com"/></label><label>GitHub repository (optional)<input type="url" value={projectRepo} onChange={e=>setProjectRepo(e.target.value)} placeholder="https://github.com/owner/repository"/></label><button className="button primary full" disabled={loading}><Plus size={16}/>Create project space</button></form>}
+
    {modal==='login'&&<form onSubmit={signIn}>{signInError&&<p className="sign-in-error" role="alert">{signInError}</p>}<p className="modal-description">Sign in with your authorized CEO email. Your company data stays in your private workspace.</p><label>Email<input required type="email" value={authEmail} onChange={e=>setAuthEmail(e.target.value)} autoComplete="email" disabled={sent} placeholder="you@company.com"/></label>{sent&&emailCodeEnabled&&<label>Code from your email<input required value={otp} onChange={e=>setOtp(e.target.value)} autoComplete="one-time-code" inputMode="numeric" placeholder="Enter the sign-in code"/></label>}{sent&&!emailCodeEnabled?<p className="sign-in-instructions" role="status">Check your inbox. Open the newest sign-in email link in this same browser. Each link works once.</p>:<button className="button primary full" disabled={loading}>{loading?<LoaderCircle size={16} className="spin"/>:<Mail size={16}/>} {sent?'Open my office':emailCodeEnabled?'Send sign-in code':'Send sign-in email'}</button>}{sent&&<button type="button" className="text-button" onClick={()=>{setSent(false);setOtp('');}}>Request a new email or change address</button>}<p className="form-hint">{emailCodeEnabled?'Enter the code from your newest sign-in email here.':'Request the email in Chrome or Edge, then open its newest link in that same browser. Keep using the same office address.'}</p></form>}
+
   </div></div>}
+
  </div>;
+
 }
